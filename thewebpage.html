@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" type="text/css" href="/static/mywebstyle.css">
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.9.0/lib/p5.js"></script>
+</head>
+
+<body>
+
+    <h1>Asteroids V2</h1>
+
+    <button id="toggle" type="button" onclick="toggle_divs()">Start Game</button>
+    <div id="game_explaination" class="_A">
+        <p>In asteroids V2 you control a rocket lost in an asteroid field. <br>
+            The aim of the game is to last as long as you can and build the <br>
+            highest total score possible. You score a point for every asteroid <br>
+            destroyed. Through the game you can spend your score on rocket <br>
+            upgrades. This will not impact your total score. <br>
+            <br>
+            Controls:<br>
+            Arrow keys: move <br>
+            Space bar: fire <br>
+            z: upgrade speed <br>
+            x: upgrade damage <br>
+            c: upgrade rate of fire
+        </p>
+
+    </div>
+    <div id="game_play" class="_A">
+        <p>Lives:
+            <span id="lives"></span>
+        </p>
+        <p>Score:
+            <span id="score"></span>
+        </p>
+        <p>Upgrade Cost: <span id="cost"></span></p>
+        <p>
+            Speed [z]:
+            <span id="speed">0</span>
+            Damage [x]:
+            <span id="damage">0</span>
+            Fire Rate [c]:
+            <span id="rate">0</span>
+        </p>
+
+    </div>
+    <script>
+        let gameover = false
+        let canScore = true
+
+        document.getElementById("game_play").style.display = "none"
+
+
+        function toggle_divs() {
+            if (game_playing == true) {
+                // document.getElementById("game_play").style.display = "none"
+                // document.getElementById("game_explaination").style.display = "block"
+                game_playing = false
+                document.getElementById("toggle").innerText = "Start"
+                document.getElementById("toggle").blur()
+            } else {
+                game_playing = true
+                document.getElementById("game_explaination").style.display = "none"
+                document.getElementById("game_play").style.display = "block"
+                document.getElementById("game_play").focus()
+                document.getElementById("toggle").blur()
+                document.getElementById("toggle").innerText = "Pause"
+
+            }
+        }
+
+
+
+        //create class
+        class Rocket {
+            constructor(x, y, angle) {
+                this.x = x
+                this.y = y
+                this.angle = angle
+                this.speed = 2
+                this.rotate_speed = 0.05
+                this.can_fire = true
+                this.fire_delay_miliseconds = 1000
+                this.lives = 3
+                this.invincible = false
+                this.transparent = false
+                this.number_of_upgrades = 0
+                this.cost = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+                this.damage = 10
+                this.xs = [0, 0, 0]
+                this.ys = [0, 0, 0]
+                this.speed_level = 0
+                this.rate_of_fire_level = 0
+                this.damage_level = 0
+                this.destroyed = false
+            }
+            display() {
+                if (this.destroyed){
+                    return
+                }
+                // push()
+                // translate(this.x, this.y)
+                // rotate(this.angle)
+                this.xs[0] = this.x + x_ratio(this.angle + 5 * (PI / 4)) * 10
+                this.xs[1] = this.x + x_ratio(this.angle) * 20
+                this.xs[2] = this.x + x_ratio(this.angle + 3 * (PI / 4)) * 10
+
+                this.ys[0] = this.y + y_ratio(this.angle + 5 * (PI / 4)) * 10
+                this.ys[1] = this.y + y_ratio(this.angle) * 20
+                this.ys[2] = this.y + y_ratio(this.angle + 3 * (PI / 4)) * 10
+
+                push()
+
+                stroke(0)
+                fill(color(0, 255, 0))
+                if (this.invincible && this.transparent) {
+                    fill(color(0, 0, 0))
+                }
+                triangle(this.xs[0], this.ys[0], this.xs[1], this.ys[1], this.xs[2], this.ys[2])
+                pop()
+                // pop()
+            }
+
+            rotate(direction) {
+                this.angle = this.angle + this.rotate_speed * direction
+                if (this.angle >= (PI * 2)) {
+                    this.angle = this.angle - 2 * PI
+                }
+                if (this.angle < 0) {
+                    this.angle = this.angle + 2 * PI
+                }
+
+            }
+            move(direction) {
+                if (this.destroyed){
+                    return
+                }
+                let delta_x = x_ratio(this.angle) * this.speed * direction
+                let delta_y = y_ratio(this.angle) * this.speed * direction
+
+                this.x = this.x + delta_x
+                this.y = this.y + delta_y
+
+                if (boarder > this.x) {
+                    this.x = this.x - delta_x
+                }
+
+                if (this.x > (width - boarder)) {
+                    this.x = this.x - delta_x
+                }
+
+                if (boarder > this.y) {
+                    this.y = this.y - delta_y
+                }
+                if (this.y > (height - boarder)) {
+                    this.y = this.y - delta_y
+                }
+
+            }
+            accelerate(delta_speed) {
+                this.speed = this.speed + delta_speed
+            }
+            fire() {
+                if (this.destroyed){
+                    return
+                }
+                if (this.can_fire) {
+                    bullets.push(new Bullet(this.x, this.y, this.angle, this.speed, this.damage))
+                    this.delay_fire()
+                }
+            }
+            delay_fire() {
+                this.can_fire = false
+                setTimeout(() => {
+                    this.can_fire = true
+                    if (keyIsDown(32)) {
+                        this.fire()
+                    }
+                }, this.fire_delay_miliseconds)
+
+                // setTimeout(function () {
+                //     rocket.can_fire = true
+                // }, this.fire_delay_miliseconds)
+            }
+            am_i_hit(asteroid) {
+                if (this.destroyed){
+                    return
+                }
+                for (let point_index = 0; point_index < 3; point_index++) {
+
+                    let dx = this.xs[point_index] - asteroid.x
+                    let dy = this.ys[point_index] - asteroid.y
+                    let distance = Math.sqrt(dx * dx + dy * dy)
+
+
+                    if (distance < asteroid.size * 0.9) {
+                        if (this.invincible) {
+                            return
+                        }
+                        splashes.push(new Splash(this.x, this.y))
+                        asteroid.destroy()
+                        if (this.lives == 0) {
+                            gameover = true
+                            return
+                        }
+                        this.lives = this.lives - 1
+                        
+                        this.invincible = true
+                        this.transparent = false
+                        
+                        this.alternateTransparency()
+                        setTimeout(() => {
+                            this.invincible = false
+                        }, 3000)
+
+
+                        return true
+                    } else {
+                        return false
+                    }
+                }
+
+
+
+            }
+            destroy(){
+                this.destroyed = true
+               
+            }
+            alternateTransparency() {
+                this.transparent = !(this.transparent)
+                if (this.invincible == true) {
+                    setTimeout(() => {
+                        this.alternateTransparency()
+                    }, 250)
+                }
+            }
+            upgrade(type_of_upgrade) {
+                if (this.destroyed){
+                    return
+                }
+                if (score < this.cost[this.number_of_upgrades]) {
+                    return
+                }
+
+                switch (type_of_upgrade) {
+                    case 'speed':
+                        if (this.speed_level == 5) {
+                            return
+                        }
+                        this.speed = this.speed + 1
+                        this.rotate_speed = this.rotate_speed + 0.01
+                        this.speed_level = this.speed_level + 1
+                        break;
+                    case 'damage':
+                        if (this.damage_level == 5) {
+                            return
+                        }
+                        this.damage = this.damage + 5
+                        this.damage_level = this.damage_level + 1
+                        break;
+                    case 'rate':
+                        if (this.rate_of_fire_level == 5) {
+                            return
+                        }
+                        this.fire_delay_miliseconds = this.fire_delay_miliseconds / 1.5
+                        this.rate_of_fire_level = this.rate_of_fire_level + 1
+                        break;
+                }
+
+                score = score - this.cost[this.number_of_upgrades]
+                this.number_of_upgrades = this.number_of_upgrades + 1
+            }
+
+
+        }
+
+        class Asteroid {
+            constructor(x, y, direction, speed, size) {
+                this.x = x
+                this.y = y
+                this.direction = direction
+                this.speed = speed
+                this.size = size
+                this.destroyed = false
+                this.health = this.size
+                this.index
+                //add to array
+
+            }
+            display() {
+                push()
+                strokeWeight(0)
+                fill(180)
+                circle(this.x, this.y, this.size)
+                fill(255)
+                circle(this.x, this.y, this.health)
+                pop()
+            }
+            move() {
+                let delta_x = x_ratio(this.direction) * this.speed
+                let delta_y = y_ratio(this.direction) * this.speed
+
+                this.x = this.x + delta_x
+                this.y = this.y + delta_y
+
+                if ((this.x - (this.size + 5)) > width) {
+                    this.destroy()
+                } else if (this.x + (this.size + 5) < 0) {
+                    this.destroy()
+                }
+
+                if ((this.y - (this.size + 5)) > height) {
+                    this.destroy()
+                } else if ((this.y + (this.size + 5)) < 0) {
+                    this.destroy()
+                }
+            }
+            destroy() {
+                //remove from array
+                this.destroyed = true
+                blasts.push(new Blast(this.x, this.y, this.size))
+            }
+            am_i_hit(bullet) {
+                if (abs(bullet.x - this.x) < this.size && abs(bullet.y - this.y) < this.size) {
+                    this.health = this.health + bullet.damage
+                    bullet.destroy()
+                    splinters.push(new Splinter(bullet.x, bullet.y))
+                }
+                if (this.health <= 0) {
+                    this.destroy()
+                    //and create two new astroids
+
+                    if (this.size > 20) {
+                        let new_direction_1 = this.direction - (PI / 4)
+                        let new_direction_2 = this.direction + (PI / 4)
+
+                        if (new_direction_1 < 0) {
+                            new_direction_1 = new_direction_1 + 2 * PI
+                        }
+
+                        if (new_direction_2 > (2 * PI)) {
+                            new_direction_2 = new_direction_2 - 2 * PI
+                        }
+
+                        asteroids.push(new Asteroid(this.x, this.y, new_direction_1, this.speed + 1, this.size / 2))
+                        asteroids.push(new Asteroid(this.x, this.y, new_direction_2, this.speed + 1, this.size / 2))
+                    }
+                    if(canScore){
+                        score = score + 1
+                        canScore = false
+                    }
+                    
+
+                    console.log('point added', bullets.length, score)
+                    total_score = total_score + 1
+
+                }
+            }
+
+        }
+
+        class Blast { //asteroid destroyed graphic
+            constructor(x, y, maxSize) {
+                this.x = x
+                this.y = y
+                this.size = 0
+                this.index
+                this.maxSize = maxSize
+            }
+            display() {
+                push()
+                strokeWeight(1)
+                stroke(255)
+                fill(0, 0)
+                circle(this.x, this.y, this.size)
+                pop()
+            }
+            grow() {
+                this.size = this.size + 3
+                if (this.size > this.maxSize) {
+                    this.destroy()
+                }
+            }
+            destroy() {
+                blasts.splice(this.index, 1)
+            }
+        }
+
+        class Splash { //rocket hit graphic
+            constructor(x, y) {
+                this.x = x
+                this.y = y
+                this.size = 0
+                this.index
+            }
+            display() {
+                push()
+                strokeWeight(0)
+                fill(0, 255, 0)
+
+                let xs = [0, 0, 0]
+                let ys = [0, 0, 0]
+
+                xs[0] = this.x + x_ratio(1.05) * this.size
+                xs[1] = this.x + x_ratio(PI) * this.size
+                xs[2] = this.x + x_ratio(5.24) * this.size
+
+                ys[0] = this.y + y_ratio(1.05) * this.size
+                ys[1] = this.y + y_ratio(PI) * this.size
+                ys[2] = this.y + y_ratio(5.24) * this.size
+
+                circle(xs[0], ys[0], 3)
+                circle(xs[1], ys[1], 3)
+                circle(xs[2], ys[2], 3)
+                pop()
+            }
+            grow() {
+                this.size = this.size + 5
+                if (this.size > 40) {
+                    this.destroy()
+                }
+            }
+            destroy() {
+               splashes.splice(this.index, 1)
+            }
+        }
+
+        class Splinter {
+            constructor(x, y) {
+                this.x = x
+                this.y = y
+                this.size = 0
+                this.index
+            }
+            display() {
+                push()
+                strokeWeight(0)
+                fill(255, 0, 0)
+
+                let xs = [0, 0, 0]
+                let ys = [0, 0, 0]
+
+                xs[0] = this.x + x_ratio(1.05) * this.size
+                xs[1] = this.x + x_ratio(PI) * this.size
+                xs[2] = this.x + x_ratio(5.24) * this.size
+
+                ys[0] = this.y + y_ratio(1.05) * this.size
+                ys[1] = this.y + y_ratio(PI) * this.size
+                ys[2] = this.y + y_ratio(5.24) * this.size
+
+                circle(xs[0], ys[0], 3)
+                circle(xs[1], ys[1], 3)
+                circle(xs[2], ys[2], 3)
+                pop()
+            }
+            grow() {
+                this.size = this.size + 5
+                if (this.size > 10) {
+                    this.destroy()
+                }
+            }
+            destroy() {
+               splinters.splice(this.index, 1)
+            }
+        }
+
+        
+
+        class Bullet {
+            constructor(x, y, direction, speed, damage) {
+                this.x = x
+                this.y = y
+                this.direction = direction
+                this.speed = speed + 10
+                this.damage = -1 * damage
+                this.destroyed = false
+                this.index
+            }
+            move() {
+                let delta_x = x_ratio(this.direction) * this.speed
+                let delta_y = y_ratio(this.direction) * this.speed
+
+                this.x = this.x + delta_x
+                this.y = this.y + delta_y
+
+                if ((this.x - 5) > width) {
+                    this.destroy()
+                } else if (this.x + 5 < 0) {
+                    this.destroy()
+                }
+
+                if ((this.y - 5) > height) {
+                    this.destroy()
+                } else if ((this.y + 5) < 0) {
+                    this.destroy()
+                }
+
+            }
+            display() {
+
+                push()
+                stroke(255, 0, 0)
+                fill(255, 0, 0)
+                circle(this.x, this.y, 5)
+                pop()
+
+            }
+            destroy() {
+                bullets.splice(this.index, 1)
+            }
+
+        }
+
+
+
+        function x_ratio(angle) {
+            let x_ratio = 0
+
+            if (angle >= (PI * 2)) {
+                angle = angle - 2 * PI
+            }
+
+            if (angle >= 0 && angle < PI / 2) {
+                x_ratio = sin(angle)
+            }
+
+            if (angle >= PI / 2 && angle < PI) {
+                x_ratio = cos(angle - PI / 2)
+            }
+
+            if (angle >= PI && angle < (3 * PI) / 2) {
+                x_ratio = - sin(angle - PI)
+            }
+
+            if (angle >= (3 * PI) / 2 && angle < 2 * PI) {
+                x_ratio = - cos(angle - (3 * PI) / 2)
+            }
+
+            return x_ratio
+        }
+
+        function y_ratio(angle) {
+
+            let y_ratio = 0
+
+            if (angle >= (PI * 2)) {
+                angle = angle - 2 * PI
+            }
+
+            if (angle >= 0 && angle < PI / 2) {
+                y_ratio = -cos(angle)
+            }
+
+            if (angle >= PI / 2 && angle < PI) {
+                y_ratio = sin(angle - PI / 2)
+            }
+
+            if (angle >= PI && angle < (3 * PI) / 2) {
+                y_ratio = cos(angle - PI)
+            }
+
+            if (angle >= (3 * PI) / 2 && angle < 2 * PI) {
+                y_ratio = - sin(angle - (3 * PI) / 2)
+            }
+
+            return y_ratio
+        }
+
+
+    </script>
+    <script>
+
+        let width = 720
+        let height = 400
+        let boarder = 25
+
+        let drawing = false
+        var rocket
+
+        let asteroids = []
+        let blasts = []
+        let splashes = []
+        let splinters = []
+
+        let asteroid_rate = 1000
+        let asteroid_difficulty = 1
+        let number_of_asteroids = 2
+
+        function spawn_asteroid(do_set_time_out) {
+
+            if (do_set_time_out) {
+                setTimeout(function () {
+                    spawn_asteroid(true)
+                }, asteroid_rate)
+            }
+
+            // if (!drawing) {
+            //     return
+            // }
+            if (!game_playing) {
+                return
+            }
+
+
+            let sides = ["Top", "Left", "Right", "Bottom"]
+            let random_side = random(["Top", "Left", "Right", "Bottom"])
+            let random_speed = Math.random() + (0.5 * asteroid_difficulty)
+            let random_size = Math.random() * 15 * asteroid_difficulty + 20
+
+
+            let random_x
+            let random_y
+            let random_direction
+
+            switch (random_side) {
+                case "Top":
+                    random_x = Math.random() * width
+                    random_y = 0 - random_size
+                    random_direction = Math.random() * PI / 2 + (3 * PI / 4)
+                    break;
+                case "Left":
+                    random_x = 0 - random_size
+                    random_y = Math.random() * height
+                    random_direction = Math.random() * PI / 2 + (PI / 4)
+
+                    break;
+                case "Right":
+                    random_x = width + random_size
+                    random_y = Math.random() * height
+                    random_direction = Math.random() * PI / 2 + (5 * PI / 4)
+                    break;
+                case "Bottom":
+                    random_x = Math.random() * width
+                    random_y = width + random_size
+                    random_direction = Math.random() * PI / 2 - (3 * PI / 4)
+                    if (random_direction < 0) {
+                        random_direction + (2 * PI)
+                    }
+            }
+
+            asteroids.push(new Asteroid(random_x, random_y, random_direction, random_speed, random_size))
+
+
+            asteroid_rate = asteroid_rate - 1
+            asteroid_difficulty = asteroid_difficulty + 0.01
+
+        }
+
+        let bullets = []
+
+        function keyPressed() {
+            if (!game_playing) {
+                return
+            }
+
+            if (key === ' ') {
+                rocket.fire()
+            }
+
+            if (key === 'z') {
+                rocket.upgrade('speed')
+            }
+            if (key === 'x') {
+                rocket.upgrade('damage')
+            }
+            if (key === 'c') {
+                rocket.upgrade('rate')
+            }
+
+        }
+
+        // The statements in the setup() function
+        // execute once when the program begins
+        function setup() {
+            drawing = true
+            createCanvas(width, height).parent("game_play"); // Size must be the first statement
+            stroke(255); // Set line drawing color to white
+            frameRate(30);
+
+
+
+
+            rocket = new Rocket(100, 100, PI / 2)
+
+            for (let asteroid_index = 0; asteroid_index < number_of_asteroids; asteroid_index++) {
+                spawn_asteroid(false)
+            }
+            spawn_asteroid(true)
+            drawing = false
+        }
+
+        let bullet_damage = 10
+        let rate_of_fire = 1
+
+        let speed_level = 0
+        let damage_level = 0
+        let rate_of_fire_level = 0
+
+        let total_score = 0
+        let score = 0
+
+        let game_playing = false
+
+        // The statements in draw() are executed until the
+        // program is stopped. Each statement is executed in
+        // sequence and after the last line is read, the first
+        // line is executed again.
+        function draw() {
+            drawing = true
+
+            if (!game_playing) {
+                return
+            }
+            background(0); // Set the background to black
+
+            if (keyIsDown(LEFT_ARROW)) {
+                rocket.rotate(-1)
+            }
+
+            if (keyIsDown(RIGHT_ARROW)) {
+                rocket.rotate(1)
+            }
+
+            if (keyIsDown(UP_ARROW)) {
+                rocket.move(1)
+
+            }
+
+            if (keyIsDown(DOWN_ARROW)) {
+                rocket.move(-1)
+            }
+
+            //move and display rocket
+
+            rocket.display()
+
+            //move and display bullet
+            for (let bullet_index = 0; bullet_index < bullets.length; bullet_index++) {
+                bullets[bullet_index].index = bullet_index
+                bullets[bullet_index].display()
+                bullets[bullet_index].move()
+            }
+
+            for (let asteroid_index = asteroids.length - 1; asteroid_index >= 0; asteroid_index--) {
+                let asteroid = asteroids[asteroid_index]
+                asteroid.index = asteroid_index
+                // check if hit by bullet
+                for (let bullet_index = 0; bullet_index < bullets.length; bullet_index++) {
+                    let bullet = bullets[bullet_index]
+                    asteroid.am_i_hit(bullet)
+                }
+
+                asteroid.move()
+                asteroid.display()
+
+                rocket.am_i_hit(asteroid)
+
+                if (asteroids[asteroid_index].destroyed == true) {
+                    asteroids.splice(asteroid_index, 1)
+                }
+
+            }
+
+
+            for (let blast_index = blasts.length - 1; blast_index >= 0; blast_index--) {
+                let blast = blasts[blast_index]
+                blast.index = blast_index
+
+                blast.display()
+                blast.grow()
+            }
+
+            for (let splash_index = splashes.length - 1; splash_index >= 0; splash_index--) {
+                let splash = splashes[splash_index]
+                splash.index = splash_index
+
+                splash.display()
+                splash.grow()
+            }
+
+            for (let splinter_index = splinters.length - 1; splinter_index >= 0; splinter_index--) {
+                let splinter = splinters[splinter_index]
+                splinter.index = splinter_index
+
+                splinter.display()
+                splinter.grow()
+            }
+
+            push()
+            //draw boader
+            stroke(255, 200, 0)
+            strokeWeight(2)
+            noFill()
+            rect(boarder, boarder, width - boarder * 2, height - boarder * 2)
+            pop()
+
+
+            document.getElementById("lives").innerText = rocket.lives
+            document.getElementById("cost").innerText = rocket.cost[rocket.number_of_upgrades]
+            document.getElementById("speed").innerText = rocket.speed_level
+            document.getElementById("damage").innerText = rocket.damage_level
+            document.getElementById("rate").innerText = rocket.rate_of_fire_level
+            document.getElementById("score").innerText = score
+
+            canScore = true
+
+            if (gameover){
+                rocket.destroy()
+                push()
+                textSize(30)
+                strokeWeight(0)
+                fill('red')
+                text('Total Score: ' + total_score.toString(), 30, 55)
+                textSize(70)
+                text('GAMEOVER', 160, 210)
+                pop()
+            }
+
+            drawing = false
+        }
+
+
+
+
+    </script>
+</body>
+
+</html>
