@@ -463,6 +463,64 @@
             }
             destroy() {
                splinters.splice(this.index, 1)
+            } 
+        }
+        class Upgrade_possible{
+            constructor() {
+                this.health = 255
+            }
+            display(){
+                push()
+                textSize(30)
+                strokeWeight(0)
+                fill('red', this.health)
+                text('UPGRADE AVAILABLE', 30, 55)
+                pop()
+            }
+            fade(){
+                this.health = this.health - 2
+                if (this.health < 0){
+                    this.destroy()
+                }
+            }
+            destroy(){
+                Upgrade_possibles.splice(this.index, 1)
+            }
+        }
+
+        class Upgrade_graphic {
+            constructor(x, y) {
+                this.x = x
+                this.y = y
+                this.size = 0
+                this.index
+                this.retracting
+                this.maxSize = 50
+            }
+            display() {
+                push()
+                strokeWeight(1)
+                stroke(120)
+                fill(120)
+                circle(this.x, this.y, this.size)
+                pop()
+            }
+            grow() {
+                if (!retracting){
+                    this.size = this.size + 3
+                }else{
+                    this.size = this.size - 1
+                }
+                
+                if (this.size > this.maxSize){
+                    this.retracting = true
+                }
+                if (this.size < 0) {
+                    this.destroy()
+                }
+            }
+            destroy() {
+                Upgrade_graphics.splice(this.index, 1)
             }
         }
 
@@ -583,6 +641,8 @@
         let blasts = []
         let splashes = []
         let splinters = []
+        let Upgrade_graphics = []
+        let Upgrade_possibles = []
 
         let asteroid_rate = 1000
         let asteroid_difficulty = 1
