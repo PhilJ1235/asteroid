@@ -252,6 +252,7 @@
                         this.speed = this.speed + 1
                         this.rotate_speed = this.rotate_speed + 0.01
                         this.speed_level = this.speed_level + 1
+                        upgrade_graphics.push(new Upgrade_graphic(this.x, this.y))
                         break;
                     case 'damage':
                         if (this.damage_level == 5) {
@@ -259,6 +260,7 @@
                         }
                         this.damage = this.damage + 5
                         this.damage_level = this.damage_level + 1
+                        upgrade_graphics.push(new Upgrade_graphic(this.x, this.y))
                         break;
                     case 'rate':
                         if (this.rate_of_fire_level == 5) {
@@ -266,6 +268,7 @@
                         }
                         this.fire_delay_miliseconds = this.fire_delay_miliseconds / 1.5
                         this.rate_of_fire_level = this.rate_of_fire_level + 1
+                        upgrade_graphics.push(new Upgrade_graphic(this.x, this.y))
                         break;
                 }
 
@@ -349,6 +352,9 @@
                     }
                     if(canScore){
                         score = score + 1
+                        if (score == rocket.cost[rocket.number_of_upgrades]){
+                            upgrade_possibles.push(new Upgrade_possible())
+                        }
                         canScore = false
                     }
                     
@@ -473,18 +479,18 @@
                 push()
                 textSize(30)
                 strokeWeight(0)
-                fill('red', this.health)
+                fill(255,0,0, this.health)
                 text('UPGRADE AVAILABLE', 30, 55)
                 pop()
             }
             fade(){
-                this.health = this.health - 2
+                this.health = this.health - 10
                 if (this.health < 0){
                     this.destroy()
                 }
             }
             destroy(){
-                Upgrade_possibles.splice(this.index, 1)
+                upgrade_possibles.splice(this.index, 1)
             }
         }
 
@@ -501,15 +507,15 @@
                 push()
                 strokeWeight(1)
                 stroke(120)
-                fill(120)
-                circle(this.x, this.y, this.size)
+                fill(255,255,255, 120)
+                circle(rocket.x, rocket.y, this.size)
                 pop()
             }
             grow() {
-                if (!retracting){
-                    this.size = this.size + 3
+                if (!this.retracting){
+                    this.size = this.size + 8
                 }else{
-                    this.size = this.size - 1
+                    this.size = this.size - 3
                 }
                 
                 if (this.size > this.maxSize){
@@ -520,7 +526,7 @@
                 }
             }
             destroy() {
-                Upgrade_graphics.splice(this.index, 1)
+                upgrade_graphics.splice(this.index, 1)
             }
         }
 
@@ -641,8 +647,8 @@
         let blasts = []
         let splashes = []
         let splinters = []
-        let Upgrade_graphics = []
-        let Upgrade_possibles = []
+        let upgrade_graphics = []
+        let upgrade_possibles = []
 
         let asteroid_rate = 1000
         let asteroid_difficulty = 1
@@ -794,6 +800,15 @@
 
             //move and display rocket
 
+
+            for (let UG_index = upgrade_graphics.length - 1; UG_index >= 0; UG_index--) {
+                let upgrade_graphic = upgrade_graphics[UG_index]
+                upgrade_graphic.index = UG_index
+
+                upgrade_graphic.display()
+                upgrade_graphic.grow()
+            }
+
             rocket.display()
 
             //move and display bullet
@@ -847,6 +862,16 @@
                 splinter.display()
                 splinter.grow()
             }
+
+            for (let UP_index = upgrade_possibles.length - 1; UP_index >= 0; UP_index--) {
+                let upgrade_possible = upgrade_possibles[UP_index]
+                upgrade_possible.index = UP_index
+                upgrade_possible.display()
+                upgrade_possible.fade()
+            }
+
+
+
 
             push()
             //draw boader
